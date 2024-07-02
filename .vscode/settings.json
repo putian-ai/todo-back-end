@@ -1,0 +1,12 @@
+{
+    "cSpell.words": [
+        "lanqiu",
+        "tiao",
+        "todos"
+    ],
+    "python.testing.pytestArgs": [
+        "app"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
+}
