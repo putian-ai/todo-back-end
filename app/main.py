@@ -146,7 +146,7 @@ def read_todos(page: int, per_page: int) -> PaginateModel[Todo]:
     limit = per_page
     with Session(engine) as session:
         count_statement = select(func.count(Todo.create_time))  # type: ignore
-        statement = select(Todo).offset(skip).limit(limit)
+        statement = select(Todo).offset(skip).limit(limit).order_by(Todo.create_time.desc()) # type: ignore
         result = session.exec(statement)
         total_items = session.exec(count_statement).one()
         items = result.all()
