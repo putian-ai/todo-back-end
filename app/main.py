@@ -161,6 +161,7 @@ def delete_todos(todo_id: int):
         todo: Todo = results.one()
         print("Todo: ", todo)
         session.delete(todo)
+        session.commit()
 
 
 @app.post("/update_todos/{todo_id}", tags=['todo'])
@@ -173,7 +174,7 @@ def update_todos(updateDto: UpdateTodoDto, todo_id: int) -> Todo:
 
         todo.item = updateDto.item
         if (updateDto.plan_time != None):
-            todo.plan_time = datetime.strptime(updateDto.plan_time, TIME_FORMAT)
+            todo.plan_time = updateDto.plan_time  # type: ignore
         session.add(todo)
         session.commit()
         session.refresh(todo)
@@ -197,6 +198,7 @@ def delete_user(user_id: int):
         results = session.exec(statement)
         user: User = results.one()
         session.delete(user)
+        session.commit()
 
 
 @app.get("/get_users/", tags=['user'])
