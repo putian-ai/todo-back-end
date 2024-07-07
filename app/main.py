@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 T = TypeVar('T')
 
-
+#define class for user
 class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_name: str = Field(index=True)
@@ -25,7 +25,7 @@ class Todo(SQLModel, table=True):
     user_id: int = Field(default=None, foreign_key="user.id")
     user: User = Relationship(back_populates='todo_list')
 
-
+#define class for paginateModel
 class PaginateModel(BaseModel, Generic[T]):
     page: int
     per_page: int
