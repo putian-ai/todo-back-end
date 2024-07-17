@@ -1,6 +1,10 @@
 {
     "cSpell.words": [
+        "fastapi",
         "lanqiu",
+        "ormar",
+        "pydantic",
+        "sqlalchemy",
         "tiao",
         "todos"
     ],
