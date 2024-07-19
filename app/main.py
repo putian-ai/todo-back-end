@@ -33,11 +33,12 @@ class User(ormar.Model):
 class Todo(ormar.Model):
     ormar_config = base_ormar_config.copy(tablename="todos")
 
-    id: int = ormar.Integer(primary_key=True, required = True) # type: ignore
-    item: str = ormar.String(index=True, max_length= 1000)  # type: ignore
+    id: int = ormar.Integer(primary_key=True, required=True)  # type: ignore
+    item: str = ormar.String(index=True, max_length=1000)  # type: ignore
     create_time: datetime = ormar.DateTime(default=datetime.now())  # type: ignore
 
-    plan_time: Optional[datetime] = ormar.DateTime(nullable=True) # type: ignore
+    plan_time: Optional[datetime] = ormar.DateTime(nullable=True)  # type: ignore
+    content: Optional[str] = ormar.String(nullable=True, max_length=5000)  # type: ignore
     user_id: int = ormar.Integer(default=None, foreign_key="user.id")  # type: ignore
     user: User = ormar.ForeignKey(User, related_name='todo_list')
 
@@ -51,6 +52,7 @@ class TodoDto(BaseModel):
     item: str
     plan_time: str
     user_id: int
+    content: str
 
     @field_validator('plan_time')
     @classmethod
@@ -63,6 +65,7 @@ class TodoDto(BaseModel):
 class UpdateTodoDto(BaseModel):
     item: str
     plan_time: str
+    content: str
 
     @field_validator('plan_time')
     @classmethod
@@ -121,7 +124,7 @@ async def init_db_and_tables():
         init_todo = init_todos[i]
         init_todo_user_id = init_todo_user_ids[i % 4]
         user = await User.objects.get(id=init_todo_user_id)
-        todo = Todo(item=init_todo, plan_time=datetime.now(), user_id=init_todo_user_id, user=user)  # type: ignore
+        todo = Todo(item=init_todo, plan_time=datetime.now(), user_id=init_todo_user_id, user=user, content="Hello")  # type: ignore
         await todo.save()
 
 
@@ -154,8 +157,8 @@ async def create_todo(todoDto: TodoDto) -> Todo:
     user = await User.objects.get_or_none(id=todoDto.user_id)
     if not user:
         raise HTTPException(status_code=400, detail="User does not exist!")
-    
-    todo = Todo(item=todoDto.item, plan_time=todoDto.plan_time, user_id=todoDto.user_id)
+
+    todo = Todo(item=todoDto.item, plan_time=todoDto.plan_time, user_id=todoDto.user_id, content=todoDto.content)
 
     await todo.save()
     return todo
@@ -189,7 +192,8 @@ async def update_todos(updateDto: UpdateTodoDto, todo_id: int) -> Todo:
 
     todo.item = updateDto.item
     if updateDto.plan_time:
-        todo.plan_time = updateDto.plan_time # type: ignore
+        todo.plan_time = updateDto.plan_time  # type: ignore
+    todo.content = updateDto.content  # type: ignore
 
     await todo.update()
     return todo
