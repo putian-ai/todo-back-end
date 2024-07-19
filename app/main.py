@@ -24,6 +24,7 @@ class Todo(SQLModel, table=True):
     plan_time: datetime | None = Field(default=None)
     user_id: int = Field(default=None, foreign_key="user.id")
     user: User = Relationship(back_populates='todo_list')
+    content: str | None = Field(default=None)
 
 
 class PaginateModel(BaseModel, Generic[T]):
@@ -41,6 +42,7 @@ class UserDto(BaseModel):
 class TodoDto(BaseModel):
     item: str
     plan_time: str | None
+    content: str | None
     user_id: int
 
     @field_validator('plan_time')
@@ -53,6 +55,7 @@ class TodoDto(BaseModel):
 
 class UpdateTodoDto(BaseModel):
     item: str
+    content: str | None
     plan_time: str | None
 
     @field_validator('plan_time')
@@ -104,7 +107,7 @@ def init_db_and_tables():
             init_todo = init_todos[i]
             init_todo_user_id = init_todo_user_ids[i % 4]
             user = session.exec(select(User).where(User.id == init_todo_user_id)).first()
-            todo = Todo(item=init_todo, plan_time=datetime.now(), user_id=init_todo_user_id, user=user)  # type: ignore
+            todo = Todo(item=init_todo, plan_time=datetime.now(), user_id=init_todo_user_id, user=user, content="hello world")  # type: ignore
             session.add(todo)
         session.commit()
 
@@ -132,7 +135,7 @@ def create_todo(todoDto: TodoDto) -> Todo:
         user = session.exec(select(User).where(User.id == todoDto.user_id)).first()
         if not user:
             raise HTTPException(status_code=400, detail="User does not exist!")
-        todo = Todo(item=todoDto.item, plan_time=todoDto.plan_time, user=user)  # type: ignore
+        todo = Todo(item=todoDto.item, plan_time=todoDto.plan_time, user=user, content=todoDto.content)  # type: ignore
         session.add(todo)  # no id in todo, because it has not been saved yet
         session.commit()  # save to db (id generated!)
         session.refresh(todo)
@@ -146,7 +149,7 @@ def read_todos(page: int, per_page: int) -> PaginateModel[Todo]:
     limit = per_page
     with Session(engine) as session:
         count_statement = select(func.count(Todo.create_time))  # type: ignore
-        statement = select(Todo).offset(skip).limit(limit).order_by(Todo.create_time.desc()) # type: ignore
+        statement = select(Todo).offset(skip).limit(limit).order_by(Todo.create_time.desc())  # type: ignore
         result = session.exec(statement)
         total_items = session.exec(count_statement).one()
         items = result.all()
@@ -175,6 +178,7 @@ def update_todos(updateDto: UpdateTodoDto, todo_id: int) -> Todo:
         todo.item = updateDto.item
         if (updateDto.plan_time != None):
             todo.plan_time = updateDto.plan_time  # type: ignore
+        todo.content = updateDto.content
         session.add(todo)
         session.commit()
         session.refresh(todo)
