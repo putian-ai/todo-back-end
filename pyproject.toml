@@ -1,0 +1,19 @@
+[tool.pdm.scripts]
+start = "fastapi dev app/main.py"
+
+[project]
+name = "putian-ai-todo-back-end"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [{ name = "Harry & Leo", email = "harry.wadu233@gmail.com" }]
+dependencies = ["fastapi>=0.111.1", "ormar>=0.20.1", "aiosqlite>=0.20.0"]
+requires-python = "==3.10.*"
+readme = "README.md"
+license = { text = "GPLv3" }
+
+
+[tool.pdm]
+distribution = false
+
+[tool.pdm.dev-dependencies]
+test = ["pytest>=8.3.1"]
