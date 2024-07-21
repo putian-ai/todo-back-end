@@ -1,5 +1,5 @@
 [tool.pdm.scripts]
-start = "fastapi dev app/main.py --host 0.0.0.0 --port 8000"
+start = "fastapi dev app/main.py --host 0.0.0.0 --port 8001"
 
 [project]
 name = "putian-ai-todo-back-end"
