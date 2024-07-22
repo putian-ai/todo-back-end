@@ -30,6 +30,21 @@ class User(ormar.Model):
     pwd: str = ormar.String(min_length=3, max_length=12)  # type: ignore
 
 
+class UserBase(BaseModel):
+    id: int
+    user_name: str
+    pwd: str
+
+
+class TodoBase(BaseModel):
+    id: int
+    item: str
+    create_time: datetime
+    plan_time: Optional[datetime]
+    content: Optional[str]
+    user_id: int
+
+
 class Todo(ormar.Model):
     ormar_config = base_ormar_config.copy(tablename="todos")
 
@@ -145,14 +160,14 @@ app.add_middleware(
 )
 
 
-@app.post("/create_users/", tags=['user'])
+@app.post("/create_users/", tags=['user'], response_model=UserBase)
 async def create_user(userDto: UserDto) -> User:
     user = User(user_name=userDto.user_name, pwd=userDto.pwd)
     await user.save()
     return user
 
 
-@app.post("/create_todos/", tags=['todo'])
+@app.post("/create_todos/", tags=['todo'], response_model=TodoBase)
 async def create_todo(todoDto: TodoDto) -> Todo:
     user = await User.objects.get_or_none(id=todoDto.user_id)
     if not user:
