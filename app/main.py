@@ -49,7 +49,7 @@ class Todo(ormar.Model):
     content: Optional[str] = ormar.String(nullable=True, max_length=5000)  # type: ignore
     user_id: int = ormar.Integer(default=None, foreign_key="user.id")  # type: ignore
     user: User = ormar.ForeignKey(User, related_name='todo_list')
-    importance: int = ormar.Integer(default=IMPORTANCE.NONE.value) # type: ignore
+    importance: Enum = ormar.Enum(enum_class=IMPORTANCE, default = IMPORTANCE.NONE.value) 
     
     @property
     def importance_enum(self) -> IMPORTANCE:
@@ -57,7 +57,7 @@ class Todo(ormar.Model):
 
     @importance_enum.setter
     def importance_enum(self, value: IMPORTANCE):
-        self.importance = value.value
+        self.importance = value.value # type: ignore
 
 
 
@@ -215,7 +215,7 @@ async def update_todos(updateDto: UpdateTodoDto, todo_id: int) -> Todo:
     if updateDto.plan_time:
         todo.plan_time = updateDto.plan_time  # type: ignore
     todo.content = updateDto.content  # type: ignore
-    todo.importance = updateDto.importance # type: ignore
+    todo.importance = updateDto.importance 
 
     await todo.update()
     return todo
