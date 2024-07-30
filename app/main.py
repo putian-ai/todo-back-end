@@ -279,7 +279,7 @@ async def delete_tags(tag_id: int):
 
 @app.post("/update_todos/{todo_id}", tags=['todo'], response_model=Todo)
 async def update_todos(updateDto: UpdateTodoDto, todo_id: int) -> TodoModel:
-    todo = await TodoModel.objects.get_or_none(id=todo_id)
+    todo = await TodoModel.objects.select_related('user').get_or_none(id=todo_id)
     if not todo:
         raise HTTPException(status_code=404, detail="Todo not found")
 
