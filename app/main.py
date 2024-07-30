@@ -1,4 +1,5 @@
 import sqlite3
+import bcrypt
 import ormar
 import databases
 import sqlalchemy
@@ -31,6 +32,15 @@ class UserModel(ormar.Model):
     user_name: str = ormar.String(min_length=3, max_length=12)  # type: ignore
     pwd: str = ormar.String(min_length=3, max_length=12)  # type: ignore
 
+    def set_hash_password(self, password: str):
+        """Hashes a password using bcrypt."""
+        salt = bcrypt.gensalt()
+        self.pwd = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+    def verify_password(self, hashed_password):
+        """Verifies a password against a hashed password."""
+        return bcrypt.checkpw(self.password.encode('utf-8'), hashed_password.encode('utf-8'))
+
 
 class Importance(int, Enum):
     NONE = 0
@@ -56,7 +66,6 @@ class Tag(BaseModel):
 class User(BaseModel):
     id: int
     user_name: str
-    pwd: str
 
 
 class Todo(BaseModel):
@@ -65,8 +74,8 @@ class Todo(BaseModel):
     create_time: datetime
     plan_time: Optional[datetime]
     content: Optional[str]
-    user_id: int
     importance: Importance
+    user: User
     tags: Optional[list[Tag]]
 
 
@@ -177,13 +186,16 @@ async def init_db_and_tables():
         "Desk"
     ]
     init_todo_user_ids = [1, 2, 3, 4]
+
     for i in range(len(init_todos)):
         init_todo = init_todos[i]
         init_todo_user_id = init_todo_user_ids[i % 4]
         user = await UserModel.objects.get(id=init_todo_user_id)
+        tag, _ = await TagModel.objects.get_or_create(name="a", color="#000000", user=user)
         todo = TodoModel(item=init_todo, plan_time=datetime.now(),
                          user=user, content="Hello", importance=Importance.MIDDLE)  # type: ignore
         await todo.save()
+        await todo.tags.add(tag)  # type: ignore
 
 
 @asynccontextmanager
@@ -229,7 +241,7 @@ async def create_todo(todoDto: TodoDto) -> TodoModel:
     if not user:
         raise HTTPException(status_code=400, detail="User does not exist!")
 
-    todo = TodoModel(item=todoDto.item, plan_time=todoDto.plan_time, user_id=todoDto.user_id, content=todoDto.content, importance=todoDto.importance.value)
+    todo = TodoModel(item=todoDto.item, plan_time=todoDto.plan_time, user=todoDto.user_id, content=todoDto.content, importance=todoDto.importance.value)
 
     await todo.save()
     return todo
@@ -241,7 +253,7 @@ async def read_todos(page: int, per_page: int) -> PaginateModel[TodoModel]:
     skip = (page - 1) * per_page
     limit = per_page
     total_items = await TodoModel.objects.count()
-    items = await TodoModel.objects.order_by(TodoModel.create_time.asc()).offset(skip).limit(limit).all()  # type: ignore
+    items = await TodoModel.objects.order_by(TodoModel.create_time.asc()).offset(skip).limit(limit).select_related(['tags', 'user']).all()  # type: ignore
     return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
 
 
@@ -293,8 +305,8 @@ async def get_user_by_todo(todo_id: int) -> UserModel:
 async def read_todos_by_user(page: int, per_page: int, user_id: int) -> PaginateModel[TodoModel]:
     skip = (page - 1) * per_page
     limit = per_page
-    total_items = await TodoModel.objects.filter(user_id=user_id).count()
-    items = await TodoModel.objects.filter(user_id=user_id).offset(skip).limit(limit).all()
+    total_items = await TodoModel.objects.filter(user=user_id).count()
+    items = await TodoModel.objects.filter(user=user_id).offset(skip).limit(limit).all()
     if not items:
         raise HTTPException(status_code=404, detail="User not found or no todos for this user")
     return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
