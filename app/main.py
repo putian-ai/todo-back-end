@@ -244,6 +244,7 @@ async def create_todo(todoDto: TodoDto) -> TodoModel:
     todo = TodoModel(item=todoDto.item, plan_time=todoDto.plan_time, user=todoDto.user_id, content=todoDto.content, importance=todoDto.importance.value)
 
     await todo.save()
+    todo.user = user
     return todo
 
 
