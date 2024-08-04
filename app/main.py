@@ -312,7 +312,7 @@ async def read_todos_by_user(page: int, per_page: int, user_id: int) -> Paginate
     skip = (page - 1) * per_page
     limit = per_page
     total_items = await TodoModel.objects.filter(user=user_id).count()
-    items = await TodoModel.objects.filter(user=user_id).offset(skip).limit(limit).all()
+    items = await TodoModel.objects.filter(user=user_id).select_related(['user', 'tags']).offset(skip).limit(limit).all()
     if not items:
         raise HTTPException(status_code=404, detail="User not found or no todos for this user")
     return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
