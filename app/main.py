@@ -229,8 +229,12 @@ async def create_tag(tagDto: TagDto) -> TagModel:
     if not user:
         raise HTTPException(status_code=400, detail="User does not exist!!!!!!!!")
     try:
-        tag = TagModel(name=tagDto.name, color=tagDto.color, user=user)
-        await tag.save()
+        tag, _ = await TagModel.objects.get_or_create(name=tagDto.name, user=user)
+        todo = await TodoModel.objects.get_or_none(id=tagDto.todo_id)
+        if not todo:
+            raise HTTPException(status_code=400, detail="Todo does not exist!")
+
+        await todo.tags.add(tag)  # type: ignore
         return tag
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=400, detail=f"{user.user_name} already has a tag named: {tagDto.name}")
