@@ -53,7 +53,7 @@ class TagModel(ormar.Model):
     ormar_config = base_ormar_config.copy(tablename="tags", constraints=[ormar.UniqueColumns("name", "user")])
     id: int = ormar.Integer(primary_key=True, required=True)  # type: ignore
     name: str = ormar.String(index=True, max_length=100)  # type: ignore
-    color: str = ormar.String(index=True, max_length=7, min_length=7)  # type: ignore
+    color: str = ormar.String(index=True, max_length=7, min_length=7, default='1111111')  # type: ignore
     user: UserModel = ormar.ForeignKey(UserModel, related_name='tag_list')
 
 
