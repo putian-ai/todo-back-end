@@ -108,6 +108,7 @@ class UserDto(BaseModel):
 
 class TagDto(BaseModel):
     user_id: int
+    todo_id: int
     name: str
     color: str = Field(max_length=7, min_length=7)
 
