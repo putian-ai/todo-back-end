@@ -33,7 +33,14 @@ def test_get_todos_by_importance():
     assert response.json()['page'] == 1
     assert response.json()['per_page'] == 10
     assert response.json()['total_items'] == 14
-    assert len(response.json()['items']) == 14
+    assert len(response.json()['items']) == 10
+
+    response2 = client.get("/get_todos_by_item_importance/2?page=1&per_page=15")
+    assert response2.status_code == 200
+    assert response2.json()['page'] == 1
+    assert response2.json()['per_page'] == 15
+    assert response2.json()['total_items'] == 14
+    assert len(response2.json()['items']) == 14
 
 
 def test_get_todos_by_plan_time():
