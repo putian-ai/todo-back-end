@@ -336,7 +336,7 @@ async def get_todos_by_importance(item_importance: Importance, page: int, per_pa
     skip = (page - 1) * per_page
     limit = per_page
 
-    query = TodoModel.objects.filter(importance=item_importance.value)
+    query = TodoModel.objects.filter(importance=item_importance)
     total_items = await query.count()
     items = await query.select_related(['user', 'tags']).offset(skip).limit(limit).all()
 
