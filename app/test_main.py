@@ -61,6 +61,22 @@ def test_get_todos_by_plan_time():
     assert response.status_code == 400
 
 
+def test_get_todos_by_todo_id():
+    todo_id = 1
+    page = 1
+    per_page = 1
+
+    response = client.get(f"/get_todo_by_todo_id/{todo_id}?page={page}&per_page={per_page}")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data['page'] == page
+    assert data['per_page'] == per_page
+    assert data['total_items'] == 1  # Assuming there is exactly one todo with ID 1
+    assert len(data['items']) == 1
+    assert data['items'][0]['id'] == todo_id
+
+
 def test_create_user():
     response = client.post("/create_users/", json={"user_name": "test_user", "pwd": "password"})
     assert response.status_code == 200
