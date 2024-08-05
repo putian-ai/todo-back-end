@@ -183,6 +183,11 @@ def test_error_handling():
     assert response.status_code == 404
     assert response.json()['detail'] == "User not found or no todos for this user"
 
+    # Test getting todos by a non-existent todo_id
+    response = client.get(f"/get_todo_by_todo_id/999?page=1&per_page=1")
+    assert response.status_code == 404
+    assert response.json()['detail'] == "Todo not found"
+
 
 def test_delete_todos():
     response = client.delete("/delete_todos/1")
