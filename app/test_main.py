@@ -179,3 +179,18 @@ def test_error_handling():
     response = client.get("/get_todos_by_user/999?page=1&per_page=10")  # Non-existent user
     assert response.status_code == 404
     assert response.json()['detail'] == "User not found or no todos for this user"
+
+
+def test_delete_todos():
+    response = client.delete("/delete_todos/1")
+    assert response.status_code == 200
+    assert response.json() == {"detail": "Todo deleted successfully"}
+    response2 = client.get("/get_todos/?page=1&per_page=1000")
+    assert len(response2.json()['items']) == 14  # created a new todo so len doesn't change
+
+
+def test_delete_tag():
+    # Assuming a tag with id 1 exists
+    response = client.delete("/delete_tag/1")
+    assert response.status_code == 200
+    assert response.json() == {"detail": "tag deleted successfully"}
