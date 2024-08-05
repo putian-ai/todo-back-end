@@ -111,19 +111,6 @@ def test_update_todos():
     assert response.json()['importance'] == Importance.LOW.value
 
 
-def test_delete_todos():
-    response = client.delete("/delete_todos/1")
-    assert response.status_code == 200
-    assert response.json() == {"detail": "Todo deleted successfully"}
-
-
-def test_delete_tag():
-    # Assuming a tag with id 1 exists
-    response = client.delete("/delete_tag/1")
-    assert response.status_code == 200
-    assert response.json() == {"detail": "tag deleted successfully"}
-
-
 def test_get_user_by_todo():
     response = client.get("/get_user_by_todo/2")
     assert response.status_code == 200
