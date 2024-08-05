@@ -89,11 +89,13 @@ def test_create_tag():
         "user_id": 1,
         "todo_id": 1,
         "name": "Test Tag",
-        "color": "#123456"
+        "color": "#123456"  # color set to default "1111111"
     })
     assert response.status_code == 200
     assert response.json()['name'] == "Test Tag"
-    assert response.json()['color'] == "#123456"
+    assert response.json()['color'] == "1111111"
+    response2 = client.get("/get_todos/?page=1&per_page=5")
+    assert len(response2.json()['items'][0]['tags']) == 2
 
 
 def test_update_todos():
