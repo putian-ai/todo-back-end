@@ -327,7 +327,7 @@ async def get_todos_by_item_name(item_name: str, page: int, per_page: int) -> Pa
     skip = (page - 1) * per_page
     limit = per_page
     total_items = await TodoModel.objects.filter(item__icontains=item_name).count()
-    items = await TodoModel.objects.filter(item__icontains=item_name).offset(skip).limit(limit).all()
+    items = await TodoModel.objects.filter(item__icontains=item_name).select_related(['user', 'tags']).offset(skip).limit(limit).all()
     return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
 
 
