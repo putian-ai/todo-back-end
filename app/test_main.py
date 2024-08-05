@@ -131,7 +131,9 @@ def test_get_user_by_todo():
 def test_get_todos_by_user():
     response = client.get("/get_todos_by_user/1?page=1&per_page=10")
     assert response.status_code == 200
-    assert len(response.json()['items']) > 0
+    assert response.json()['total_items'] == 4
+    print(response.json()['items'])
+    assert len(response.json()['items']) == 4
 
 
 def test_error_handling():
