@@ -338,7 +338,7 @@ async def get_todos_by_importance(item_importance: Importance, page: int, per_pa
 
     query = TodoModel.objects.filter(importance=item_importance.value)
     total_items = await query.count()
-    items = await query.offset(skip).limit(limit).all()
+    items = await query.select_related(['user', 'tags']).offset(skip).limit(limit).all()
 
     return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
 
