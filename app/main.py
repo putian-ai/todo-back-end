@@ -218,6 +218,10 @@ app.add_middleware(
 
 @app.post("/create_users/", tags=['user'], response_model=User)
 async def create_user(userDto: UserDto) -> UserModel:
+    if len(userDto.user_name) > 12 or len(userDto.user_name) < 3:
+        raise HTTPException(status_code=400, detail="min_length=3, max_length=12")
+    elif len(userDto.pwd) > 12 or len(userDto.pwd) < 3:
+        raise HTTPException(status_code=400, detail="min_length=3, max_length=12")
     user = UserModel(user_name=userDto.user_name, pwd=userDto.pwd)
     await user.save()
     return user
