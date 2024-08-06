@@ -1,13 +1,16 @@
+import asyncio
 from fastapi.testclient import TestClient
+import pytest
 import sqlalchemy
 from datetime import datetime, timedelta
 
-from .main import app, Importance, TodoDto, UpdateTodoDto, TagDto
+from .main import app, Importance, TodoDto, UpdateTodoDto, TagDto, init_db_and_tables
 
 client = TestClient(app)
 
 
-def test_read_todos():
+async def test_read_todos():
+    await init_db_and_tables()
     response = client.get("/get_todos/?page=1&per_page=5")
     assert response.status_code == 200
     assert response.json()['page'] == 1
@@ -17,7 +20,8 @@ def test_read_todos():
     assert [item['item'] for item in response.json()['items']] == ['Code', 'Groceries', 'Clean', 'Call', 'Bills']
 
 
-def test_get_todos_by_item_name():
+async def test_get_todos_by_item_name():
+    await init_db_and_tables()
     response = client.get("/get_todos_by_item_name/b?page=1&per_page=10")
     assert response.status_code == 200
     assert response.json()['page'] == 1
@@ -27,7 +31,8 @@ def test_get_todos_by_item_name():
     assert [item['item'] for item in response.json()['items']] == ['Bills', 'Library']
 
 
-def test_get_todos_by_importance():
+async def test_get_todos_by_importance():
+    await init_db_and_tables()
     response = client.get("/get_todos_by_item_importance/2?page=1&per_page=10")
     assert response.status_code == 200
     assert response.json()['page'] == 1
@@ -43,7 +48,8 @@ def test_get_todos_by_importance():
     assert len(response2.json()['items']) == 14
 
 
-def test_get_todos_by_plan_time():
+async def test_get_todos_by_plan_time():
+    await init_db_and_tables()
     # Test with date only
     response = client.get("/get_todos_by_plan_time/2023-12-27?page=1&per_page=10")
     assert response.status_code == 200
@@ -61,7 +67,8 @@ def test_get_todos_by_plan_time():
     assert response.status_code == 400
 
 
-def test_get_todos_by_todo_id():
+async def test_get_todos_by_todo_id():
+    await init_db_and_tables()
     todo_id = 1
     page = 1
     per_page = 1
@@ -77,7 +84,8 @@ def test_get_todos_by_todo_id():
     assert data['items'][0]['id'] == todo_id
 
 
-def test_create_user():
+async def test_create_user():
+    await init_db_and_tables()
     response = client.post("/create_users/", json={"user_name": "test_user", "pwd": "password"})
     assert response.status_code == 200
     assert response.json()['user_name'] == "test_user"
@@ -86,7 +94,8 @@ def test_create_user():
     assert response.json()['detail'] == "min_length=3, max_length=12"
 
 
-def test_create_todo():
+async def test_create_todo():
+    await init_db_and_tables()
     response = client.post("/create_todos/", json={
         "item": "Test Todo",
         "plan_time": (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S"),
@@ -100,7 +109,8 @@ def test_create_todo():
     assert response.json()['importance'] == Importance.HIGH.value
 
 
-def test_create_tag():
+async def test_create_tag():
+    await init_db_and_tables()
     response = client.post("/create_tag/", json={
         "user_id": 1,
         "todo_id": 1,
@@ -114,7 +124,8 @@ def test_create_tag():
     assert len(response2.json()['items'][0]['tags']) == 2
 
 
-def test_update_todos():
+async def test_update_todos():
+    await init_db_and_tables()
     response = client.post("/update_todos/1", json={
         "item": "Updated Test Todo",
         "plan_time": (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S"),
@@ -127,21 +138,24 @@ def test_update_todos():
     assert response.json()['importance'] == Importance.LOW.value
 
 
-def test_get_user_by_todo():
+async def test_get_user_by_todo():
+    await init_db_and_tables()
     response = client.get("/get_user_by_todo/2")
     assert response.status_code == 200
     assert response.json()['id'] == 2
 
 
-def test_get_todos_by_user():
+async def test_get_todos_by_user():
+    await init_db_and_tables()
     response = client.get("/get_todos_by_user/1?page=1&per_page=10")
     assert response.status_code == 200
-    assert response.json()['total_items'] == 5  # created new todo
+    assert response.json()['total_items'] == 4
     print(response.json()['items'])
-    assert len(response.json()['items']) == 5
+    assert len(response.json()['items']) == 4
 
 
-def test_error_handling():
+async def test_error_handling():
+    await init_db_and_tables()
     # Test creating a todo with a non-existent user
     response = client.post("/create_todos/", json={
         "item": "Test Todo",
@@ -189,15 +203,17 @@ def test_error_handling():
     assert response.json()['detail'] == "Todo not found"
 
 
-def test_delete_todos():
+async def test_delete_todos():
+    await init_db_and_tables()
     response = client.delete("/delete_todos/1")
     assert response.status_code == 200
     assert response.json() == {"detail": "Todo deleted successfully"}
     response2 = client.get("/get_todos/?page=1&per_page=1000")
-    assert len(response2.json()['items']) == 14  # created a new todo so len doesn't change
+    assert len(response2.json()['items']) == 13
 
 
-def test_delete_tag():
+async def test_delete_tag():
+    await init_db_and_tables()
     # Assuming a tag with id 1 exists
     response = client.delete("/delete_tag/1")
     assert response.status_code == 200
