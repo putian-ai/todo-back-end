@@ -1,6 +1,18 @@
+[tool.pdm]
+distribution = false
 [tool.pdm.scripts]
 start = "fastapi dev app/main.py --host 0.0.0.0 --port 8001"
 
+[tool.pdm.dev-dependencies]
+test = [
+    "pytest>=8.3.1",
+    "pytest-asyncio>=0.23.8",
+    "pytest-twisted>=1.14.2",
+    "pytest-trio>=0.8.0",
+    "pytest-tornasync>=0.6.0.post2",
+    "anyio>=4.4.0",
+    "twisted>=24.3.0",
+]
 [project]
 name = "putian-ai-todo-back-end"
 version = "0.1.0"
@@ -17,8 +29,3 @@ readme = "README.md"
 license = { text = "GPLv3" }
 
 
-[tool.pdm]
-distribution = false
-
-[tool.pdm.dev-dependencies]
-test = ["pytest>=8.3.1"]
