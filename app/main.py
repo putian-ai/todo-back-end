@@ -53,7 +53,7 @@ class TagModel(ormar.Model):
     ormar_config = base_ormar_config.copy(tablename="tags", constraints=[ormar.UniqueColumns("name", "user")])
     id: int = ormar.Integer(primary_key=True, required=True)  # type: ignore
     name: str = ormar.String(index=True, max_length=100)  # type: ignore
-    color: str = ormar.String(index=True, max_length=7, min_length=7)  # type: ignore
+    color: str = ormar.String(index=True, max_length=7, min_length=7, default='1111111')  # type: ignore
     user: UserModel = ormar.ForeignKey(UserModel, related_name='tag_list')
 
 
@@ -84,7 +84,7 @@ class TodoModel(ormar.Model):
 
     id: int = ormar.Integer(primary_key=True, required=True)  # type: ignore
     item: str = ormar.String(index=True, max_length=1000)  # type: ignore
-    create_time: datetime = ormar.DateTime(default=datetime.now())  # type: ignore
+    create_time: datetime = ormar.DateTime(default=datetime.now)  # type: ignore
 
     plan_time: Optional[datetime] = ormar.DateTime(nullable=True)  # type: ignore
     content: Optional[str] = ormar.String(nullable=True, max_length=5000)  # type: ignore
@@ -108,6 +108,7 @@ class UserDto(BaseModel):
 
 class TagDto(BaseModel):
     user_id: int
+    todo_id: int
     name: str
     color: str = Field(max_length=7, min_length=7)
 
@@ -217,6 +218,10 @@ app.add_middleware(
 
 @app.post("/create_users/", tags=['user'], response_model=User)
 async def create_user(userDto: UserDto) -> UserModel:
+    if len(userDto.user_name) > 12 or len(userDto.user_name) < 3:
+        raise HTTPException(status_code=400, detail="min_length=3, max_length=12")
+    elif len(userDto.pwd) > 12 or len(userDto.pwd) < 3:
+        raise HTTPException(status_code=400, detail="min_length=3, max_length=12")
     user = UserModel(user_name=userDto.user_name, pwd=userDto.pwd)
     await user.save()
     return user
@@ -228,8 +233,12 @@ async def create_tag(tagDto: TagDto) -> TagModel:
     if not user:
         raise HTTPException(status_code=400, detail="User does not exist!!!!!!!!")
     try:
-        tag = TagModel(name=tagDto.name, color=tagDto.color, user=user)
-        await tag.save()
+        tag, _ = await TagModel.objects.get_or_create(name=tagDto.name, user=user)
+        todo = await TodoModel.objects.get_or_none(id=tagDto.todo_id)
+        if not todo:
+            raise HTTPException(status_code=400, detail="Todo does not exist!")
+
+        await todo.tags.add(tag)  # type: ignore
         return tag
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=400, detail=f"{user.user_name} already has a tag named: {tagDto.name}")
@@ -307,7 +316,7 @@ async def read_todos_by_user(page: int, per_page: int, user_id: int) -> Paginate
     skip = (page - 1) * per_page
     limit = per_page
     total_items = await TodoModel.objects.filter(user=user_id).count()
-    items = await TodoModel.objects.filter(user=user_id).offset(skip).limit(limit).all()
+    items = await TodoModel.objects.filter(user=user_id).select_related(['user', 'tags']).offset(skip).limit(limit).all()
     if not items:
         raise HTTPException(status_code=404, detail="User not found or no todos for this user")
     return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
@@ -318,7 +327,7 @@ async def get_todos_by_item_name(item_name: str, page: int, per_page: int) -> Pa
     skip = (page - 1) * per_page
     limit = per_page
     total_items = await TodoModel.objects.filter(item__icontains=item_name).count()
-    items = await TodoModel.objects.filter(item__icontains=item_name).offset(skip).limit(limit).all()
+    items = await TodoModel.objects.filter(item__icontains=item_name).select_related(['user', 'tags']).offset(skip).limit(limit).all()
     return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
 
 
@@ -327,9 +336,23 @@ async def get_todos_by_importance(item_importance: Importance, page: int, per_pa
     skip = (page - 1) * per_page
     limit = per_page
 
-    query = TodoModel.objects.filter(importance=item_importance.value)
+    query = TodoModel.objects.filter(importance=item_importance)
     total_items = await query.count()
-    items = await query.offset(skip).limit(limit).all()
+    items = await query.select_related(['user', 'tags']).offset(skip).limit(limit).all()
+
+    return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
+
+
+@app.get("/get_todo_by_todo_id/{todo_id}", tags=['apis'], description="Get todo by the todo_id", response_model=PaginateModel[Todo])
+async def get_todo_by_todo_id(todo_id: int, page: int, per_page: int) -> PaginateModel[TodoModel]:
+    skip = (page - 1) * per_page
+    limit = per_page
+
+    query = TodoModel.objects.filter(id=todo_id)
+    total_items = await query.count()
+    items = await query.select_related(['user', 'tags']).offset(skip).limit(limit).all()
+    if not items:
+        raise HTTPException(status_code=404, detail="Todo not found")
 
     return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
 
