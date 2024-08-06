@@ -84,7 +84,7 @@ class TodoModel(ormar.Model):
 
     id: int = ormar.Integer(primary_key=True, required=True)  # type: ignore
     item: str = ormar.String(index=True, max_length=1000)  # type: ignore
-    create_time: datetime = ormar.DateTime(default=datetime.now())  # type: ignore
+    create_time: datetime = ormar.DateTime(default=datetime.now)  # type: ignore
 
     plan_time: Optional[datetime] = ormar.DateTime(nullable=True)  # type: ignore
     content: Optional[str] = ormar.String(nullable=True, max_length=5000)  # type: ignore
