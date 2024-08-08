@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 from contextlib import asynccontextmanager
 from typing import Generic, Optional, TypeVar, Sequence
 from fastapi.middleware.cors import CORSMiddleware
-from authx import AuthX, AuthXConfig, RequestToken
+from authx import AuthX, AuthXConfig, RequestToken, TokenPayload
 
 
 sqlite_file_name = "todo.db"
@@ -41,6 +41,11 @@ class UserModel(ormar.Model):
     def verify_password(self, hashed_password):
         """Verifies a password against a hashed password."""
         return bcrypt.checkpw(self.password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+
+class LoginForm(BaseModel):
+    username: str
+    password: str
 
 
 class Importance(int, Enum):
@@ -207,6 +212,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+security = AuthX()
 
 
 config = AuthXConfig(
@@ -227,53 +233,28 @@ app.add_middleware(
 )
 
 
-@app.get('/login')
-async def login(username: str, password: str):
-    if username == "xyz" and password == "xyz":
-        token = auth.create_access_token(uid=username)
-        return {"access_token": token}
-    raise HTTPException(401, detail={"message": "Invalid credentials"})
+@app.post('/login')
+async def login(form: LoginForm):
+    # Replace with your actual user validation logic
+    if form.username == "test" and form.password == "test":
+        access_token = security.create_access_token(sub=form.username)
+        refresh_token = security.create_refresh_token(sub=form.username)
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token
+        }
+    raise HTTPException(status_code=401, detail="Bad username or password")
 
 
-@app.get("/protected", dependencies=[Depends(auth.get_token_from_request)])
-async def get_protected(token: RequestToken = Depends()):
-    try:
-        auth.verify_token(token=token)
-        return {"message": "Welcome to Putian AI List. Hope you can have a nice weekend"}
-    except Exception as e:
-        raise HTTPException(401, detail={"message": str(e)}) from e
+@app.post('/refresh')
+async def refresh(refresh_token: TokenPayload = Depends(security.refresh_token_required)):
+    new_access_token = security.create_access_token(sub=refresh_token.sub)
+    return {"access_token": new_access_token}
 
 
-@app.post("/refresh_token")
-async def refresh_token(request: Request, authx: AuthX = Depends()):
-    try:
-        refresh_token = await authx.get_refresh_token_from_request(request)
-        payload = authx.verify_token(refresh_token)
-        new_access_token = authx.create_access_token(uid=payload.sub)
-        return {"access_token": new_access_token}
-    except AuthXException as e:
-        raise HTTPException(status_code=401, detail=str(e))
-
-
-@app.post("/password_reset_request")
-async def password_reset_request(email: str, background_tasks: BackgroundTasks):
-    user = await UserModel.objects.get_or_none(email=email)
-    if user:
-        reset_token = authx.create_access_token(uid=user.id, expiry=datetime.timedelta(minutes=15))  # short-lived token
-        background_tasks.add_task(send_email, email, reset_token)
-    return {"message": "You will receive a reset link in your registered email "}
-
-
-@app.post("/reset_password")
-async def reset_password(token: str, new_password: str):
-    try:
-        payload = authx.verify_token(token)
-        user = await UserModel.objects.get(id=payload.sub)
-        user.set_hash_password(new_password)
-        await user.update()
-        return {"message": "Password updated successfully"}
-    except AuthXException as e:
-        raise HTTPException(status_code=401, detail=str(e))
+@app.get('/protected')
+async def protected_route(token: TokenPayload = Depends(security.access_token_required)):
+    return {"message": "You have access to this protected resource"}
 
 
 @app.post("/create_users/", tags=['user'], response_model=User)
