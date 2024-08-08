@@ -5,11 +5,12 @@ import databases
 import sqlalchemy
 from enum import Enum
 from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from contextlib import asynccontextmanager
 from typing import Generic, Optional, TypeVar, Sequence
 from fastapi.middleware.cors import CORSMiddleware
+from authx import AuthX, AuthXConfig, RequestToken
 
 
 sqlite_file_name = "todo.db"
@@ -207,6 +208,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
+config = AuthXConfig(
+    JWT_ALGORITHM = "HS256",
+    JWT_SECRET_KEY = "PUTIAN_NB",
+    JWT_TOKEN_LOCATION = ["headers"]
+)
+
+auth = AuthX(config=config)
+auth.handle_errors(app)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -214,7 +225,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+@app.get('/login')
+def login(username: str, password: str):
+    if username == "xyz" and password == "xyz":
+        token = auth.create_access_token(uid=username)
+        return {"access_token": token}
+    raise HTTPException(401, detail={"message": "Invalid credentials"})
 
+@app.get("/protected", dependencies=[Depends(auth.get_token_from_request)])
+def get_protected(token: RequestToken = Depends()):
+    try:
+        auth.verify_token(token=token)
+        return {"message": "Welcome to Putian AI List. Hope you can have a nice weekend"}
+    except Exception as e:
+        raise HTTPException(401, detail={"message": str(e)}) from e
+    
+@app.post("/refresh_token")
+def refresh_token(refresh_token: str = Depends()):
+    try:
+        # Verify the refresh token
+        username = auth.verify_refresh_token(refresh_token) # type: ignore
+        # Create a new access token
+        new_access_token = auth.create_access_token(uid=username)
+        return {"access_token": new_access_token}
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")    
 
 @app.post("/create_users/", tags=['user'], response_model=User)
 async def create_user(userDto: UserDto) -> UserModel:
