@@ -70,18 +70,11 @@ async def test_get_todos_by_plan_time():
 async def test_get_todos_by_todo_id():
     await init_db_and_tables()
     todo_id = 1
-    page = 1
-    per_page = 1
-
-    response = client.get(f"/get_todo_by_todo_id/{todo_id}?page={page}&per_page={per_page}")
+    response = client.get(f"/get_todo_by_todo_id/{todo_id}")
     assert response.status_code == 200
     data = response.json()
 
-    assert data['page'] == page
-    assert data['per_page'] == per_page
-    assert data['total_items'] == 1  # Assuming there is exactly one todo with ID 1
-    assert len(data['items']) == 1
-    assert data['items'][0]['id'] == todo_id
+    assert data['id'] == todo_id
 
 
 async def test_create_user():

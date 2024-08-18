@@ -343,18 +343,13 @@ async def get_todos_by_importance(item_importance: Importance, page: int, per_pa
     return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
 
 
-@app.get("/get_todo_by_todo_id/{todo_id}", tags=['apis'], description="Get todo by the todo_id", response_model=PaginateModel[Todo])
-async def get_todo_by_todo_id(todo_id: int, page: int, per_page: int) -> PaginateModel[TodoModel]:
-    skip = (page - 1) * per_page
-    limit = per_page
+@app.get("/get_todo_by_todo_id/{todo_id}", tags=['apis'], description="Get todo by the todo_id", response_model=Todo)
+async def get_todo_by_todo_id(todo_id: int) -> TodoModel:
 
-    query = TodoModel.objects.filter(id=todo_id)
-    total_items = await query.count()
-    items = await query.select_related(['user', 'tags']).offset(skip).limit(limit).all()
-    if not items:
+    todo = await TodoModel.objects.select_related(['user', 'tags']).get_or_none(id=todo_id)
+    if not todo:
         raise HTTPException(status_code=404, detail="Todo not found")
-
-    return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
+    return todo
 
 
 @app.get("/get_todos_by_plan_time/{plan_time_str}", tags=['apis'], description="Get todos by the plan time", response_model=PaginateModel[Todo])
