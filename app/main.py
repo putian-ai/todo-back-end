@@ -11,7 +11,11 @@ from contextlib import asynccontextmanager
 from typing import Generic, Optional, TypeVar, Sequence
 from fastapi.middleware.cors import CORSMiddleware
 from authx import AuthX, AuthXConfig, RequestToken, TokenPayload
+from dotenv import load_dotenv
+import os
 
+
+load_dotenv('.env')
 
 sqlite_file_name = "todo.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -31,19 +35,24 @@ class UserModel(ormar.Model):
 
     id: int = ormar.Integer(primary_key=True)  # type: ignore
     user_name: str = ormar.String(min_length=3, max_length=12)  # type: ignore
-    pwd: str = ormar.String(min_length=3, max_length=12)  # type: ignore
+    pwd: str = ormar.String(max_length=120)  # type: ignore
 
-    def set_hash_password(self, password: str):
+    @staticmethod
+    def generate_hash_password(password: str):
         """Hashes a password using bcrypt."""
+        if len(password) < 8:
+            raise ValueError('Password must be at least 8 characters long.')
+        if len(password) > 16:
+            raise ValueError('Password must be at most 16 characters long.')
         salt = bcrypt.gensalt()
-        self.pwd = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+        return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
-    def verify_password(self, hashed_password):
+    def verify_password(self, plain_password):
         """Verifies a password against a hashed password."""
-        return bcrypt.checkpw(self.password.encode('utf-8'), hashed_password.encode('utf-8'))
+        return bcrypt.checkpw(plain_password.encode('utf-8'), self.pwd.encode('utf-8'))
 
 
-class LoginForm(BaseModel):
+class LoginDto(BaseModel):
     username: str
     password: str
 
@@ -174,7 +183,8 @@ async def init_db_and_tables():
     base_ormar_config.metadata.create_all(engine)
     init_users = ['Harry', 'Leo', 'Amy', 'Alvin']
     for user_name in init_users:
-        user = UserModel(user_name=user_name, pwd='123456')
+        pwd = UserModel.generate_hash_password('12345678')
+        user = UserModel(user_name=user_name, pwd=pwd)
         await user.save()
     init_todos = [
         "Code",
@@ -212,17 +222,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-security = AuthX()
+
+config = AuthXConfig()
+config.JWT_ALGORITHM = "HS256"
+config.JWT_SECRET_KEY = os.getenv('SECRET')
 
 
-config = AuthXConfig(
-    JWT_ALGORITHM="HS256",
-    JWT_SECRET_KEY="PUTIAN_NB",
-    JWT_TOKEN_LOCATION=["headers"]
-)
-
-auth = AuthX(config=config)
-auth.handle_errors(app)
+security = AuthX(config=config)
 
 app.add_middleware(
     CORSMiddleware,
@@ -233,28 +239,39 @@ app.add_middleware(
 )
 
 
-@app.post('/login')
-async def login(form: LoginForm):
+class LoginResponse(BaseModel):
+    access_token: str
+
+
+@app.post('/login', response_model=LoginResponse)
+async def login(dto: LoginDto):
     # Replace with your actual user validation logic
-    if form.username == "test" and form.password == "test":
-        access_token = security.create_access_token(sub=form.username)
-        refresh_token = security.create_refresh_token(sub=form.username)
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token
-        }
-    raise HTTPException(status_code=401, detail="Bad username or password")
+    user = await UserModel.objects.get_or_none(user_name=dto.username)
+    if not user:
+        raise HTTPException(status_code=400, detail="User does not exist!")
+    if not user.verify_password(dto.password):
+        raise HTTPException(status_code=400, detail="Password incorrect!")
+
+    access_token = security.create_access_token(uid=dto.username, data={'id': user.id}, expiry=timedelta(weeks=1))
+    return {
+        "access_token": access_token,
+    }
 
 
 @app.post('/refresh')
 async def refresh(refresh_token: TokenPayload = Depends(security.refresh_token_required)):
-    new_access_token = security.create_access_token(sub=refresh_token.sub)
+    new_access_token = security.create_access_token(uid=refresh_token.sub)
     return {"access_token": new_access_token}
 
 
-@app.get('/protected')
-async def protected_route(token: TokenPayload = Depends(security.access_token_required)):
-    return {"message": "You have access to this protected resource"}
+@app.get("/protected", dependencies=[Depends(security.get_access_token_from_request)])
+def get_protected(payload=security.ACCESS_TOKEN):
+    try:
+        token_payload = security.verify_token(payload)
+        user_id: int = token_payload.id  # type: ignore
+        return {"message": "Hello world !"}
+    except Exception as e:
+        raise HTTPException(401, detail={"message": str(e)}) from e
 
 
 @app.post("/create_users/", tags=['user'], response_model=User)
