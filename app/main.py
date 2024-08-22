@@ -274,7 +274,7 @@ def get_protected(payload=security.ACCESS_TOKEN):
         raise HTTPException(401, detail={"message": str(e)}) from e
 
 
-@app.post("/create_users/", tags=['user'], response_model=User)
+@app.post("/create_user/", tags=['user'], response_model=User)
 async def create_user(userDto: UserDto) -> UserModel:
     if len(userDto.user_name) > 12 or len(userDto.user_name) < 3:
         raise HTTPException(status_code=400, detail="min_length=3, max_length=12")
