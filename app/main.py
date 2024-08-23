@@ -369,15 +369,20 @@ async def get_user_by_todo(todo_id: int) -> UserModel:
     return todo.user
 
 
-@app.get("/get_todos_by_user/{user_id}", tags=['apis'], response_model=PaginateModel[Todo])
-async def read_todos_by_user(page: int, per_page: int, user_id: int) -> PaginateModel[TodoModel]:
-    skip = (page - 1) * per_page
-    limit = per_page
-    total_items = await TodoModel.objects.filter(user=user_id).count()
-    items = await TodoModel.objects.filter(user=user_id).select_related(['user', 'tags']).offset(skip).limit(limit).all()
-    if not items:
-        raise HTTPException(status_code=404, detail="User not found or no todos for this user")
-    return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
+@app.get("/get_todos_by_user/{user_id}", dependencies=[Depends(security.get_access_token_from_request)], tags=['apis'], response_model=PaginateModel[Todo])
+async def read_todos_by_user(page: int, per_page: int, payload=security.ACCESS_TOKEN) -> PaginateModel[TodoModel]:
+    try:
+        token_payload = security.verify_token(payload)
+        user_id: int = token_payload.id  # type: ignore
+        skip = (page - 1) * per_page
+        limit = per_page
+        total_items = await TodoModel.objects.filter(user=user_id).count()
+        items = await TodoModel.objects.filter(user=user_id).select_related(['user', 'tags']).offset(skip).limit(limit).all()
+        if not items:
+            raise HTTPException(status_code=404, detail="User not found or no todos for this user")
+        return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
+    except Exception as e:
+        raise HTTPException(401, detail={"message": str(e)}) from e
 
 
 @app.get("/get_todos_by_item_name/{item_name}", tags=['apis'], description="Get todos by the item name", response_model=PaginateModel[Todo])
