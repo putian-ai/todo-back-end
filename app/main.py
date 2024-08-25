@@ -385,28 +385,40 @@ async def read_todos_by_user(page: int, per_page: int, payload=security.ACCESS_T
         raise HTTPException(401, detail={"message": str(e)}) from e
 
 
-@app.get("/get_todos_by_item_name/{item_name}", tags=['apis'], description="Get todos by the item name", response_model=PaginateModel[Todo])
-async def get_todos_by_item_name(item_name: str, page: int, per_page: int) -> PaginateModel[TodoModel]:
-    skip = (page - 1) * per_page
-    limit = per_page
-    total_items = await TodoModel.objects.filter(item__icontains=item_name).count()
-    items = await TodoModel.objects.filter(item__icontains=item_name).select_related(['user', 'tags']).offset(skip).limit(limit).all()
-    return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
+@app.get("/get_todos_by_item_name/{item_name}", dependencies=[Depends(security.get_access_token_from_request)], tags=['apis'], description="Get todos by the item name", response_model=PaginateModel[Todo])
+async def get_todos_by_item_name(item_name: str, page: int, per_page: int, payload=security.ACCESS_REQUIRED) -> PaginateModel[TodoModel]:
+    try:
+        token_payload = security.verify_token(payload)
+        user_id: int = token_payload.id  # type: ignore
+
+        skip = (page - 1) * per_page
+        limit = per_page
+        total_items = await TodoModel.objects.filter(user=user_id).filter(item__icontains=item_name).count()
+        items = await TodoModel.objects.filter(user=user_id).filter(item__icontains=item_name).select_related(['user', 'tags']).offset(skip).limit(limit).all()
+        return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
+    except Exception as e:
+        raise HTTPException(401, detail={"ACCESS DENIED": str(e)}) from e
 
 
-@app.get("/get_todos_by_item_importance/{item_importance}", tags=['apis'], description="Get todos by the item importance", response_model=PaginateModel[Todo])
-async def get_todos_by_importance(item_importance: Importance, page: int, per_page: int) -> PaginateModel[TodoModel]:
-    skip = (page - 1) * per_page
-    limit = per_page
+@app.get("/get_todos_by_item_importance/{item_importance}", dependencies=[Depends(security.get_access_token_from_request)], tags=['apis'], description="Get todos by the item importance", response_model=PaginateModel[Todo])
+async def get_todos_by_importance(item_importance: Importance, page: int, per_page: int, payload=security.ACCESS_REQUIRED) -> PaginateModel[TodoModel]:
+    try:
 
-    query = TodoModel.objects.filter(importance=item_importance)
-    total_items = await query.count()
-    items = await query.select_related(['user', 'tags']).offset(skip).limit(limit).all()
+        skip = (page - 1) * per_page
+        limit = per_page
+        token_payload = security.verify_token(payload)
+        user_id: int = token_payload.id  # type: ignore
 
-    return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
+        query = TodoModel.objects.filter(user=user_id).filter(importance=item_importance)
+        total_items = await query.count()
+        items = await query.select_related(['user', 'tags']).offset(skip).limit(limit).all()
+
+        return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
+    except Exception as e:
+        raise HTTPException(401, detail={"ACCESS DENIED": str(e)}) from e
 
 
-@app.get("/get_todo_by_todo_id/{todo_id}", tags=['apis'], description="Get todo by the todo_id", response_model=Todo)
+@app.get("/get_todo_by_todo_id/{todo_id}", dependencies=[Depends(security.get_access_token_from_request)], tags=['apis'], description="Get todo by the todo_id", response_model=Todo)
 async def get_todo_by_todo_id(todo_id: int) -> TodoModel:
 
     todo = await TodoModel.objects.select_related(['user', 'tags']).get_or_none(id=todo_id)
