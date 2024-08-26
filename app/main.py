@@ -386,7 +386,7 @@ async def read_todos_by_user(page: int, per_page: int, payload=security.ACCESS_T
 
 
 @app.get("/get_todos_by_item_name/{item_name}", dependencies=[Depends(security.get_access_token_from_request)], tags=['apis'], description="Get todos by the item name", response_model=PaginateModel[Todo])
-async def get_todos_by_item_name(item_name: str, page: int, per_page: int, payload=security.ACCESS_REQUIRED) -> PaginateModel[TodoModel]:
+async def get_todos_by_item_name(item_name: str, page: int, per_page: int, payload=security.ACCESS_TOKEN) -> PaginateModel[TodoModel]:
     try:
         token_payload = security.verify_token(payload)
         user_id: int = token_payload.id  # type: ignore
