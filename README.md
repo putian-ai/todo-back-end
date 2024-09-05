@@ -5,3 +5,10 @@
 ```
 pdm run start
 ```
+
+
+## Prod
+
+```
+pdm run serve
+```
