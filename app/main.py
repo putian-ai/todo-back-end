@@ -218,6 +218,7 @@ async def init_db_and_tables():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db_and_tables()
+    await init_db_and_tables()
     yield
 
 
@@ -329,15 +330,17 @@ async def create_todo(todoDto: TodoDto) -> TodoModel:
     return todo
 
 
-@app.get("/get_todos/", tags=['todo'], response_model=PaginateModel[Todo])
+@app.get("/get_todos/", tags=['todo'], response_model=PaginateModel[Todo], dependencies=[Depends(security.get_access_token_from_request)])
 # page: int, per_page: int
-async def read_todos(page: int, per_page: int) -> PaginateModel[TodoModel]:
-    skip = (page - 1) * per_page
-    limit = per_page
-    total_items = await TodoModel.objects.count()
-    items = await TodoModel.objects.order_by(TodoModel.create_time.asc()).offset(skip).limit(limit).select_related(['tags', 'user']).all()  # type: ignore
-    return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
-
+async def read_todos(page: int, per_page: int, user_id: int = Depends(get_current_user_id)) -> PaginateModel[TodoModel]:
+    try:
+        skip = (page - 1) * per_page
+        limit = per_page
+        total_items = await TodoModel.objects.filter(user=user_id).count()
+        items = await TodoModel.objects.filter(user=user_id).order_by(TodoModel.create_time.asc()).offset(skip).limit(limit).select_related(['tags', 'user']).all()  # type: ignore
+        return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
+    except Exception as e:
+        raise HTTPException(401, detail={"Access Denied": str(e)}) from e
 
 @app.delete("/delete_todos/{todo_id}", tags=['todo'])
 async def delete_todos(todo_id: int):
@@ -397,8 +400,9 @@ async def read_todos_by_user(page: int, per_page: int, payload=security.ACCESS_T
         raise HTTPException(401, detail={"Access Denied": str(e)}) from e
 
 
-@app.get("/get_todos_by_item_name/{item_name}", dependencies=[Depends(security.get_access_token_from_request)], tags=['apis'], description="Get todos by the item name", response_model=PaginateModel[Todo])
-async def get_todos_by_item_name(item_name: str, page: int, per_page: int, payload=security.ACCESS_TOKEN, user_id: int = Depends(get_current_user_id)) -> PaginateModel[TodoModel]:
+@app.get("/get_todos_by_item_name/", dependencies=[Depends(security.get_access_token_from_request)], tags=['apis'], description="Get todos by the item name", response_model=PaginateModel[Todo])
+async def get_todos_by_item_name(item_name: str, page: int, per_page: int, user_id: int = Depends(get_current_user_id)) -> PaginateModel[TodoModel]:
+    print('item_name:', item_name)
     try:
         skip = (page - 1) * per_page
         limit = per_page
