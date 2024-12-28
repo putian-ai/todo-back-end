@@ -401,17 +401,49 @@ async def read_todos_by_user(page: int, per_page: int, payload=security.ACCESS_T
 
 
 @app.get("/get_todos_by_item_name/", dependencies=[Depends(security.get_access_token_from_request)], tags=['apis'], description="Get todos by the item name", response_model=PaginateModel[Todo])
-async def get_todos_by_item_name(item_name: str, page: int, per_page: int, user_id: int = Depends(get_current_user_id)) -> PaginateModel[TodoModel]:
+async def get_todos_by_item_name(page: int, per_page: int, item_name: str = "", plan_time_str: str = "", item_importance: int = -1, user_id: int = Depends(get_current_user_id)) -> PaginateModel[TodoModel]:
     print('item_name:', item_name)
     try:
         skip = (page - 1) * per_page
         limit = per_page
-        total_items = await TodoModel.objects.filter(user=user_id, item__icontains=item_name).count()
-        items = await TodoModel.objects.filter(user=user_id, item__icontains=item_name).select_related(['user', 'tags']).offset(skip).limit(limit).all()
+
+        filter_plan_time = False
+        plan_time_start = None
+        plan_time_end = None
+        if len(plan_time_str) == len('2024-06-06 11'):
+            plan_time_start = datetime.strptime(plan_time_str, "%Y-%m-%d %H")
+            plan_time_end = plan_time_start + timedelta(hours=1)
+            filter_plan_time = True
+        elif len(plan_time_str) == len('2024-06-06'):
+            plan_time_start = datetime.strptime(plan_time_str, "%Y-%m-%d")
+            plan_time_end = plan_time_start + timedelta(days=1)
+            filter_plan_time = True
+
+        query = TodoModel.objects.filter(user=user_id)
+        if filter_plan_time:
+            query = query.filter(plan_time__gt=plan_time_start, plan_time__lt=plan_time_end)
+        if item_name:
+            query = query.filter(item__icontains=item_name)
+        if item_importance > 0:
+            query = query.filter(importance=item_importance)
+        
+
+        total_items = await query.count()
+        items = await query.select_related(['user', 'tags']).offset(skip).limit(limit).all()
         return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
     except Exception as e:
         raise HTTPException(401, detail={"ACCESS DENIED": str(e)}) from e
 
+
+
+@app.get("/get_tags_by_user/", dependencies=[Depends(security.get_access_token_from_request)], tags=['apis'], description="Get tag by the user", response_model=PaginateModel[Tag])
+async def get_tags_by_user(page: int, per_page: int, user_id: int = Depends(get_current_user_id)) -> PaginateModel[TagModel]:
+    skip = (page - 1) * per_page
+    limit = per_page
+    
+    total_items = await TagModel.objects.filter(user=user_id).count()
+    items = await TagModel.objects.filter(user=user_id).offset(skip).limit(limit).all()
+    return PaginateModel[TagModel](page=page, items=items, per_page=per_page, total_items=total_items)
 
 @app.get("/get_todos_by_item_importance/{item_importance}", dependencies=[Depends(security.get_access_token_from_request)], tags=['apis'], description="Get todos by the item importance", response_model=PaginateModel[Todo])
 async def get_todos_by_importance(item_importance: Importance, page: int, per_page: int, payload=security.ACCESS_REQUIRED, user_id: int = Depends(get_current_user_id)) -> PaginateModel[TodoModel]:
