@@ -79,10 +79,10 @@ async def test_get_todos_by_todo_id():
 
 async def test_create_user():
     await init_db_and_tables()
-    response = client.post("/create_users/", json={"user_name": "test_user", "pwd": "password"})
+    response = client.post("/create_user/", json={"user_name": "test_user", "pwd": "password"})
     assert response.status_code == 200
     assert response.json()['user_name'] == "test_user"
-    response = client.post("/create_users/", json={"user_name": "test_user", "pwd": "test_password"})
+    response = client.post("/create_user/", json={"user_name": "test_user", "pwd": "test_password"})
     assert response.status_code == 400
     assert response.json()['detail'] == "min_length=3, max_length=12"
 

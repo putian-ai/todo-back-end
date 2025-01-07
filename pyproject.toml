@@ -2,7 +2,7 @@
 distribution = false
 [tool.pdm.scripts]
 start = "fastapi dev app/main.py --host 0.0.0.0 --port 8001"
-
+serve = 'fastapi run app/main.py --host 0.0.0.0 --port 8001'
 [tool.pdm.dev-dependencies]
 test = [
     "pytest>=8.3.1",
