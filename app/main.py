@@ -5,10 +5,10 @@ import databases
 import sqlalchemy
 from enum import Enum
 from datetime import datetime, timedelta
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
 from contextlib import asynccontextmanager
-from typing import Generic, Optional, TypeVar, Sequence
+from typing import Annotated, Generic, Optional, TypeVar, Sequence
 from fastapi.middleware.cors import CORSMiddleware
 from authx import AuthX, AuthXConfig, RequestToken, TokenPayload
 from dotenv import load_dotenv
@@ -76,6 +76,7 @@ class Tag(BaseModel):
     id: int
     name: str
     color: str
+    isSelected: bool = False
 
 
 class User(BaseModel):
@@ -401,7 +402,7 @@ async def read_todos_by_user(page: int, per_page: int, payload=security.ACCESS_T
 
 
 @app.get("/get_todos_by_item_name/", dependencies=[Depends(security.get_access_token_from_request)], tags=['apis'], description="Get todos by the item name", response_model=PaginateModel[Todo])
-async def get_todos_by_item_name(page: int, per_page: int, item_name: str = "", plan_time_str: str = "", item_importance: int = -1, user_id: int = Depends(get_current_user_id)) -> PaginateModel[TodoModel]:
+async def get_todos_by_item_name(page: int, per_page: int, item_name: str = "", plan_time_str: str = "", item_importance: int = -1,  tag_id: int = -1, user_id: int = Depends(get_current_user_id)) -> PaginateModel[TodoModel]:
     print('item_name:', item_name)
     try:
         skip = (page - 1) * per_page
@@ -426,8 +427,8 @@ async def get_todos_by_item_name(page: int, per_page: int, item_name: str = "", 
             query = query.filter(item__icontains=item_name)
         if item_importance > 0:
             query = query.filter(importance=item_importance)
-        
-
+        if tag_id > 0:
+            query = query.filter(tags__id=tag_id)
         total_items = await query.count()
         items = await query.select_related(['user', 'tags']).offset(skip).limit(limit).all()
         return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
