@@ -34,7 +34,7 @@ class UserModel(ormar.Model):
     ormar_config = base_ormar_config.copy(tablename="users")
 
     id: int = ormar.Integer(primary_key=True)  # type: ignore
-    user_name: str = ormar.String(min_length=3, max_length=12)  # type: ignore
+    user_name: str = ormar.String(min_length=3, max_length=12, unique=True)  # type: ignore
     pwd: str = ormar.String(max_length=120)  # type: ignore
 
     @staticmethod
@@ -296,7 +296,10 @@ async def create_user(userDto: UserDto) -> UserModel:
         raise HTTPException(status_code=400, detail="min_length=3, max_length=12")
     elif len(userDto.pwd) > 12 or len(userDto.pwd) < 3:
         raise HTTPException(status_code=400, detail="min_length=3, max_length=12")
-    user = UserModel(user_name=userDto.user_name, pwd=userDto.pwd)
+    elif await UserModel.objects.get_or_none(user_name=userDto.user_name):
+        raise HTTPException(status_code=400, detail="User already exists!")
+    pwd = UserModel.generate_hash_password(userDto.pwd)
+    user = UserModel(user_name=userDto.user_name, pwd=pwd)
     await user.save()
     return user
 
