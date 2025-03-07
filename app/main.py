@@ -132,7 +132,6 @@ class TagDto(BaseModel):
 class TodoDto(BaseModel):
     item: str
     plan_time: str
-    user_id: int
     content: str
     importance: Importance
 
@@ -247,7 +246,7 @@ class LoginResponse(BaseModel):
 
 async def get_current_user_id(token: str = Depends(security.get_access_token_from_request)) -> int:
     try:
-        token_payload = security.verify_token(token) # type: ignore
+        token_payload = security.verify_token(token)  # type: ignore
         user_id = int(token_payload.id)   # type: ignore
         return user_id
     except Exception as e:
@@ -321,14 +320,11 @@ async def create_tag(tagDto: TagDto) -> TagModel:
         raise HTTPException(status_code=400, detail=f"{user.user_name} already has a tag named: {tagDto.name}")
 
 
-@app.post("/create_todos/", tags=['todo'], response_model=Todo)
-async def create_todo(todoDto: TodoDto) -> TodoModel:
-    user = await UserModel.objects.get_or_none(id=todoDto.user_id)
-    if not user:
-        raise HTTPException(status_code=400, detail="User does not exist!")
+@app.post("/create_todo/", tags=['todo'], response_model=Todo, dependencies=[Depends(security.get_access_token_from_request)])
+async def create_todo(todoDto: TodoDto, user_id: int = Depends(get_current_user_id)) -> TodoModel:
+    user = await UserModel.objects.get_or_none(id=user_id)
 
-    todo = TodoModel(item=todoDto.item, plan_time=todoDto.plan_time, user=todoDto.user_id, content=todoDto.content, importance=todoDto.importance.value)
-
+    todo = TodoModel(item=todoDto.item, plan_time=todoDto.plan_time, user=user, content=todoDto.content, importance=todoDto.importance.value)
     await todo.save()
     todo.user = user
     return todo
@@ -341,10 +337,12 @@ async def read_todos(page: int, per_page: int, user_id: int = Depends(get_curren
         skip = (page - 1) * per_page
         limit = per_page
         total_items = await TodoModel.objects.filter(user=user_id).count()
-        items = await TodoModel.objects.filter(user=user_id).order_by(TodoModel.create_time.asc()).offset(skip).limit(limit).select_related(['tags', 'user']).all()  # type: ignore
+        items = await TodoModel.objects.filter(user=user_id).order_by(TodoModel.create_time.asc()).offset(skip).limit(limit).select_related(['tags', 'user']).all() # type: ignore
+
         return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)
     except Exception as e:
         raise HTTPException(401, detail={"Access Denied": str(e)}) from e
+
 
 @app.delete("/delete_todos/{todo_id}", tags=['todo'])
 async def delete_todos(todo_id: int):
@@ -439,15 +437,15 @@ async def get_todos_by_item_name(page: int, per_page: int, item_name: str = "", 
         raise HTTPException(401, detail={"ACCESS DENIED": str(e)}) from e
 
 
-
 @app.get("/get_tags_by_user/", dependencies=[Depends(security.get_access_token_from_request)], tags=['apis'], description="Get tag by the user", response_model=PaginateModel[Tag])
 async def get_tags_by_user(page: int, per_page: int, user_id: int = Depends(get_current_user_id)) -> PaginateModel[TagModel]:
     skip = (page - 1) * per_page
     limit = per_page
-    
+
     total_items = await TagModel.objects.filter(user=user_id).count()
     items = await TagModel.objects.filter(user=user_id).offset(skip).limit(limit).all()
     return PaginateModel[TagModel](page=page, items=items, per_page=per_page, total_items=total_items)
+
 
 @app.get("/get_todos_by_item_importance/{item_importance}", dependencies=[Depends(security.get_access_token_from_request)], tags=['apis'], description="Get todos by the item importance", response_model=PaginateModel[Todo])
 async def get_todos_by_importance(item_importance: Importance, page: int, per_page: int, payload=security.ACCESS_REQUIRED, user_id: int = Depends(get_current_user_id)) -> PaginateModel[TodoModel]:
@@ -480,8 +478,8 @@ async def get_todo_by_plan_time(plan_time_str: str, page: int, per_page: int, us
     limit = per_page
 
     if plan_time_str == "null":
-        total_items = await TodoModel.objects.filter(User= user_id, plan_time=None).count()
-        items = await TodoModel.objects.filter(User= user_id, plan_time=None).offset(skip).limit(limit).all()
+        total_items = await TodoModel.objects.filter(User=user_id, plan_time=None).count()
+        items = await TodoModel.objects.filter(User=user_id, plan_time=None).offset(skip).limit(limit).all()
     else:
         if len(plan_time_str) == len('2024-06-06 11'):
             plan_time_start = datetime.strptime(plan_time_str, "%Y-%m-%d %H")
@@ -492,7 +490,7 @@ async def get_todo_by_plan_time(plan_time_str: str, page: int, per_page: int, us
         else:
             raise HTTPException(status_code=400, detail="Plan time format invalid!")
 
-        total_items = await TodoModel.objects.filter(plan_time__gt=plan_time_start, plan_time__lt=plan_time_end, User= user_id).count()
-        items = await TodoModel.objects.filter(plan_time__gt=plan_time_start, plan_time__lt=plan_time_end, User= user_id).offset(skip).limit(limit).all()
+        total_items = await TodoModel.objects.filter(plan_time__gt=plan_time_start, plan_time__lt=plan_time_end, User=user_id).count()
+        items = await TodoModel.objects.filter(plan_time__gt=plan_time_start, plan_time__lt=plan_time_end, User=user_id).offset(skip).limit(limit).all()
 
     return PaginateModel[TodoModel](page=page, items=items, per_page=per_page, total_items=total_items)

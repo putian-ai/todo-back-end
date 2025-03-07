@@ -11,6 +11,9 @@
     "python.testing.pytestArgs": [
         "app"
     ],
+    "autopep8.args": [
+        "--line-length 200"
+    ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true
 }
