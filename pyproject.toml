@@ -27,7 +27,22 @@ dependencies = [
     "fastapi-mail>=1.4.1",
     "itsdangerous>=2.2.0",
     "python-dotenv>=1.0.1",
+    "openai>=1.68.2",
 ]
 requires-python = "==3.10.*"
 readme = "README.md"
 license = { text = "GPLv3" }
+
+[dependency-groups]
+ipykernel = [
+    "notebook>=7.3.3",
+]
+test = [
+    "pytest>=8.3.1",
+    "pytest-asyncio>=0.23.8",
+    "pytest-twisted>=1.14.2",
+    "pytest-trio>=0.8.0",
+    "pytest-tornasync>=0.6.0.post2",
+    "anyio>=4.4.0",
+    "twisted>=24.3.0",
+]

@@ -218,7 +218,6 @@ async def init_db_and_tables():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db_and_tables()
-    await init_db_and_tables()
     yield
 
 
